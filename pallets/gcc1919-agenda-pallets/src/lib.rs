@@ -12,25 +12,6 @@ pub mod pallet {
     #[pallet::pallet]
     pub struct Pallet<T>(_);
 
-    // Definindo a estrutura Contato
-    #[derive(Clone, Encode, Decode, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-    pub struct Contato<T: Config> {
-        nome: BoundedVec<u8, T::MaxNomeLength>,
-        telefone: BoundedVec<u8, T::MaxTelefoneLength>,
-        email: BoundedVec<u8, T::MaxEmailLength>,
-        idade: u32,
-        data_aniversario: BoundedVec<u8, T::MaxDataLength>,
-        categoria: Categoria,
-    }
-    
-    #[derive(Clone, Encode, Decode, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-    pub enum Categoria {
-        Amigo,
-        Familiar,
-        Colega,
-        Outro,
-    }
-
     #[pallet::config]
     pub trait Config: frame_system::Config + TypeInfo {
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
@@ -40,24 +21,46 @@ pub mod pallet {
         type MaxDataLength: Get<u32>;
     }
 
+    #[derive(Clone, Encode, Decode, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+    pub struct Contato<T: Config> {
+        id: u32,
+        nome: BoundedVec<u8, T::MaxNomeLength>,
+        telefone: BoundedVec<u8, T::MaxTelefoneLength>,
+        email: BoundedVec<u8, T::MaxEmailLength>,
+        idade: u32,
+        data_aniversario: BoundedVec<u8, T::MaxDataLength>,
+        categoria: Categoria,
+    }
 
-    // Storage para armazenar os contatos
+    #[derive(Clone, Encode, Decode, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+    pub enum Categoria {
+        Amigo,
+        Familiar,
+        Colega,
+        Outro,
+    }
+
     #[pallet::storage]
     #[pallet::getter(fn contatos)]
-    pub type Contatos<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, Contato<T>>;
+    pub type Contatos<T: Config> =
+        StorageDoubleMap<_, Blake2_128Concat, T::AccountId, Blake2_128Concat, u32, Contato<T>>;
+
+    #[pallet::storage]
+    #[pallet::getter(fn contador_contatos)]
+    pub type ContadorContatos<T: Config> =
+        StorageMap<_, Blake2_128Concat, T::AccountId, u32, ValueQuery>;
 
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
-        ContatoCriado { quem: T::AccountId },
-        ContatoAtualizado { quem: T::AccountId },
-        ContatoDeletado { quem: T::AccountId },
+        ContatoCriado { quem: T::AccountId, id: u32 },
+        ContatoAtualizado { quem: T::AccountId, id: u32 },
+        ContatoDeletado { quem: T::AccountId, id: u32 },
     }
 
     #[pallet::error]
     pub enum Error<T> {
         ContatoNaoEncontrado,
-        ContatoJaExiste,
         NomeMuitoLongo,
         TelefoneMuitoLongo,
         EmailMuitoLongo,
@@ -66,8 +69,8 @@ pub mod pallet {
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
-        #[pallet::call_index(0)]
         #[pallet::weight(Weight::default())]
+        #[pallet::call_index(0)]
         pub fn criar_contato(
             origin: OriginFor<T>,
             nome: Vec<u8>,
@@ -78,20 +81,23 @@ pub mod pallet {
             categoria: Categoria,
         ) -> DispatchResult {
             let quem = ensure_signed(origin)?;
-            ensure!(!Contatos::<T>::contains_key(&quem), Error::<T>::ContatoJaExiste);
-            
+            let id = ContadorContatos::<T>::get(&quem);
+
             let contato = Contato {
+                id,
                 nome: BoundedVec::try_from(nome).map_err(|_| Error::<T>::NomeMuitoLongo)?,
-                telefone: BoundedVec::try_from(telefone).map_err(|_| Error::<T>::TelefoneMuitoLongo)?,
+                telefone: BoundedVec::try_from(telefone)
+                    .map_err(|_| Error::<T>::TelefoneMuitoLongo)?,
                 email: BoundedVec::try_from(email).map_err(|_| Error::<T>::EmailMuitoLongo)?,
                 idade,
-                data_aniversario: BoundedVec::try_from(data_aniversario).map_err(|_| Error::<T>::DataMuitoLonga)?,
+                data_aniversario: BoundedVec::try_from(data_aniversario)
+                    .map_err(|_| Error::<T>::DataMuitoLonga)?,
                 categoria,
             };
 
-            Contatos::<T>::insert(&quem, contato);
-            Self::deposit_event(Event::ContatoCriado { quem });
-
+            Contatos::<T>::insert(&quem, id, contato);
+            ContadorContatos::<T>::insert(&quem, id + 1);
+            Self::deposit_event(Event::ContatoCriado { quem, id });
             Ok(())
         }
 
@@ -99,6 +105,7 @@ pub mod pallet {
         #[pallet::call_index(1)]
         pub fn atualizar_contato(
             origin: OriginFor<T>,
+            id: u32,
             nome: Vec<u8>,
             telefone: Vec<u8>,
             email: Vec<u8>,
@@ -107,28 +114,38 @@ pub mod pallet {
             categoria: Categoria,
         ) -> DispatchResult {
             let quem = ensure_signed(origin)?;
-            let mut contato = Contatos::<T>::get(&quem).ok_or(Error::<T>::ContatoNaoEncontrado)?;
+            ensure!(
+                Contatos::<T>::contains_key(&quem, id),
+                Error::<T>::ContatoNaoEncontrado
+            );
 
-            contato.nome = BoundedVec::try_from(nome).map_err(|_| Error::<T>::NomeMuitoLongo)?;
-            contato.telefone = BoundedVec::try_from(telefone).map_err(|_| Error::<T>::TelefoneMuitoLongo)?;
-            contato.email = BoundedVec::try_from(email).map_err(|_| Error::<T>::EmailMuitoLongo)?;
-            contato.idade = idade;
-            contato.data_aniversario = BoundedVec::try_from(data_aniversario).map_err(|_| Error::<T>::DataMuitoLonga)?;
-            contato.categoria = categoria;
+            let contato = Contato {
+                id,
+                nome: BoundedVec::try_from(nome).map_err(|_| Error::<T>::NomeMuitoLongo)?,
+                telefone: BoundedVec::try_from(telefone)
+                    .map_err(|_| Error::<T>::TelefoneMuitoLongo)?,
+                email: BoundedVec::try_from(email).map_err(|_| Error::<T>::EmailMuitoLongo)?,
+                idade,
+                data_aniversario: BoundedVec::try_from(data_aniversario)
+                    .map_err(|_| Error::<T>::DataMuitoLonga)?,
+                categoria,
+            };
 
-            Contatos::<T>::insert(&quem, contato);
-            Self::deposit_event(Event::ContatoAtualizado { quem });
-
+            Contatos::<T>::insert(&quem, id, contato);
+            Self::deposit_event(Event::ContatoAtualizado { quem, id });
             Ok(())
         }
 
         #[pallet::weight(Weight::default())]
         #[pallet::call_index(2)]
-        pub fn deletar_contato(origin: OriginFor<T>) -> DispatchResult {
+        pub fn deletar_contato(origin: OriginFor<T>, id: u32) -> DispatchResult {
             let quem = ensure_signed(origin)?;
-            ensure!(Contatos::<T>::contains_key(&quem), Error::<T>::ContatoNaoEncontrado);
-            Contatos::<T>::remove(&quem);
-            Self::deposit_event(Event::ContatoDeletado { quem });
+            ensure!(
+                Contatos::<T>::contains_key(&quem, id),
+                Error::<T>::ContatoNaoEncontrado
+            );
+            Contatos::<T>::remove(&quem, id);
+            Self::deposit_event(Event::ContatoDeletado { quem, id });
             Ok(())
         }
     }
