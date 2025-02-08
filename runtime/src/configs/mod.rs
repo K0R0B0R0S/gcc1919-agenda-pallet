@@ -177,4 +177,8 @@ parameter_types! {
 // Configure custom pallet.
 impl gcc1919_agenda_pallets::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
+	type MaxNomeLength = ConstU32<100>;
+    type MaxTelefoneLength = ConstU32<20>;
+    type MaxEmailLength = ConstU32<100>;
+    type MaxDataLength = ConstU32<10>;
 }
