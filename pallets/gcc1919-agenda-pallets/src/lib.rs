@@ -34,7 +34,7 @@ pub mod pallet {
         pub telefone: BoundedVec<u8, T::MaxTelefoneLength>,
         pub email: BoundedVec<u8, T::MaxEmailLength>,
         pub idade: u32,
-        pub data_aniversario: BoundedVec<u8, T::MaxDataLength>,
+        pub data_aniversario: u64,
         pub categoria: Categoria,
     }
 
@@ -71,6 +71,46 @@ pub mod pallet {
         TelefoneMuitoLongo,
         EmailMuitoLongo,
         DataMuitoLonga,
+        DataInvalida,
+    }
+    
+    impl<T: Config> Pallet<T> {
+        pub fn convert_to_timestamp(date_str: Vec<u8>) -> Result<u64, Error<T>> {
+            let date_str = core::str::from_utf8(&date_str).map_err(|_| Error::<T>::DataInvalida)?;
+            let parts: Vec<&str> = date_str.split('/').collect();
+            if parts.len() != 3 {
+                return Err(Error::<T>::DataInvalida);
+            }
+            let day: u32 = parts[0].parse().map_err(|_| Error::<T>::DataInvalida)?;
+            let month: u32 = parts[1].parse().map_err(|_| Error::<T>::DataInvalida)?;
+            let year: i32 = parts[2].parse().map_err(|_| Error::<T>::DataInvalida)?;
+            if month < 1 || month > 12 || day < 1 || day > 31 {
+                return Err(Error::<T>::DataInvalida);
+            }
+            let timestamp = Self::date_to_unix_timestamp(year, month, day)?;
+            Ok(timestamp)
+        }
+
+        fn date_to_unix_timestamp(year: i32, month: u32, day: u32) -> Result<u64, Error<T>> {
+            let mut days = 0;
+            for y in 1970..year {
+                days += if Self::is_leap_year(y) { 366 } else { 365 };
+            }
+            let days_in_month = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+            for m in 0..(month as usize - 1) {
+                days += days_in_month[m];
+                if m == 1 && Self::is_leap_year(year) {
+                    days += 1;
+                }
+            }
+            days += day - 1;
+            let timestamp = days as u64 * 86400;
+            Ok(timestamp)
+        }
+
+        fn is_leap_year(year: i32) -> bool {
+            (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0)
+        }
     }
 
     #[pallet::call]
@@ -88,6 +128,7 @@ pub mod pallet {
         ) -> DispatchResult {
             let quem = ensure_signed(origin)?;
             let id = ContadorContatos::<T>::get(&quem);
+            let data_aniversario_parsed = Self::convert_to_timestamp(data_aniversario)?;
 
             let contato = Contato {
                 id,
@@ -96,8 +137,7 @@ pub mod pallet {
                     .map_err(|_| Error::<T>::TelefoneMuitoLongo)?,
                 email: BoundedVec::try_from(email).map_err(|_| Error::<T>::EmailMuitoLongo)?,
                 idade,
-                data_aniversario: BoundedVec::try_from(data_aniversario)
-                    .map_err(|_| Error::<T>::DataMuitoLonga)?,
+                data_aniversario: data_aniversario_parsed,
                 categoria,
             };
 
@@ -120,6 +160,7 @@ pub mod pallet {
             categoria: Categoria,
         ) -> DispatchResult {
             let quem = ensure_signed(origin)?;
+            let data_aniversario_parsed = Self::convert_to_timestamp(data_aniversario)?;
             ensure!(
                 Contatos::<T>::contains_key(&quem, id),
                 Error::<T>::ContatoNaoEncontrado
@@ -132,8 +173,7 @@ pub mod pallet {
                     .map_err(|_| Error::<T>::TelefoneMuitoLongo)?,
                 email: BoundedVec::try_from(email).map_err(|_| Error::<T>::EmailMuitoLongo)?,
                 idade,
-                data_aniversario: BoundedVec::try_from(data_aniversario)
-                    .map_err(|_| Error::<T>::DataMuitoLonga)?,
+                data_aniversario: data_aniversario_parsed,
                 categoria,
             };
 

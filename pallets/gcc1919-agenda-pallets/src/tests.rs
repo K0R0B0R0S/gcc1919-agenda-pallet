@@ -1,9 +1,5 @@
-// src/tests.rs
-use crate::{Event, pallet::Config};
 use frame_support::{assert_noop, assert_ok};
-use frame_system::RawOrigin;
 use crate::mock::{new_test_ext, CustomPallet, RuntimeOrigin, Test};
-use sp_core::H256;
 
 
 #[test]
@@ -29,10 +25,11 @@ fn test_criar_contato() {
 
         // Verifica se o contato foi criado corretamente
         let contato = CustomPallet::contatos(1, 0).unwrap();
+        let data_formatada = CustomPallet::convert_to_timestamp(data_aniversario).unwrap();
         assert_eq!(contato.nome, nome);
         assert_eq!(contato.telefone, telefone);
         assert_eq!(contato.idade, idade);
-        assert_eq!(contato.data_aniversario, data_aniversario);
+        assert_eq!(contato.data_aniversario, data_formatada);
         assert_eq!(contato.categoria, categoria);
 
         // Verifica se o próximo ID foi incrementado
@@ -40,31 +37,31 @@ fn test_criar_contato() {
     });
 }
 
-// #[test]
-// fn test_criar_contato_data_invalida() {
-//     new_test_ext().execute_with(|| {
-//         // Teste criando um contato com data inválida
-//         let nome = b"John Doe".to_vec();
-//         let telefone = b"123456789".to_vec();
-//         let idade = 30;
-//         let email = b"john.doe@example.com".to_vec();
-//         let data_aniversario = b"32/13/1990".to_vec(); // Data inválida
-//         let categoria = crate::Categoria::Amigo;
+#[test]
+fn test_criar_contato_data_invalida() {
+    new_test_ext().execute_with(|| {
+        // Teste criando um contato com data inválida
+        let nome = b"John Doe".to_vec();
+        let telefone = b"123456789".to_vec();
+        let idade = 30;
+        let email = b"john.doe@example.com".to_vec();
+        let data_aniversario = b"32/13/1990".to_vec();
+        let categoria = crate::Categoria::Amigo;
 
-//         assert_noop!(
-//             CustomPallet::criar_contato(
-//                 RuntimeOrigin::signed(1),
-//                 nome.clone(),
-//                 telefone.clone(),
-//                 email.clone(),
-//                 idade,
-//                 data_aniversario.clone(),
-//                 categoria.clone(),
-//             ),
-//             crate::Error::<Test>::DataInvalida
-//         );
-//     });
-// }
+        assert_noop!(
+            CustomPallet::criar_contato(
+                RuntimeOrigin::signed(1),
+                nome.clone(),
+                telefone.clone(),
+                email.clone(),
+                idade,
+                data_aniversario.clone(),
+                categoria.clone(),
+            ),
+            crate::Error::<Test>::DataInvalida
+        );
+    });
+}
 
 #[test]
 fn test_atualizar_contato() {
@@ -108,10 +105,11 @@ fn test_atualizar_contato() {
 
         // Verifica se o contato foi atualizado corretamente
         let updated_contato = CustomPallet::contatos(1,0).unwrap();
+        let data_formatada = CustomPallet::convert_to_timestamp(new_data_aniversario).unwrap();
         assert_eq!(updated_contato.nome, new_nome);
         assert_eq!(updated_contato.telefone, new_telefone);
         assert_eq!(updated_contato.idade, new_idade);
-        assert_eq!(updated_contato.data_aniversario, new_data_aniversario);
+        assert_eq!(updated_contato.data_aniversario, data_formatada);
         assert_eq!(updated_contato.categoria, new_categoria);
     });
 }
