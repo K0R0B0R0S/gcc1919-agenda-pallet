@@ -2,6 +2,12 @@
 
 pub use pallet::*;
 
+#[cfg(test)]
+mod mock;
+
+#[cfg(test)]
+mod tests;
+
 #[frame_support::pallet]
 pub mod pallet {
     use super::*;
@@ -23,13 +29,13 @@ pub mod pallet {
 
     #[derive(Clone, Encode, Decode, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
     pub struct Contato<T: Config> {
-        id: u32,
-        nome: BoundedVec<u8, T::MaxNomeLength>,
-        telefone: BoundedVec<u8, T::MaxTelefoneLength>,
-        email: BoundedVec<u8, T::MaxEmailLength>,
-        idade: u32,
-        data_aniversario: BoundedVec<u8, T::MaxDataLength>,
-        categoria: Categoria,
+        pub id: u32,
+        pub nome: BoundedVec<u8, T::MaxNomeLength>,
+        pub telefone: BoundedVec<u8, T::MaxTelefoneLength>,
+        pub email: BoundedVec<u8, T::MaxEmailLength>,
+        pub idade: u32,
+        pub data_aniversario: BoundedVec<u8, T::MaxDataLength>,
+        pub categoria: Categoria,
     }
 
     #[derive(Clone, Encode, Decode, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
