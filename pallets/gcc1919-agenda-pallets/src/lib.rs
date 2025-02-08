@@ -14,6 +14,7 @@ pub mod pallet {
     use frame_support::pallet_prelude::*;
     use frame_system::pallet_prelude::*;
     use scale_info::prelude::vec::Vec;
+    use scale_info::prelude::string::String;
 
     #[pallet::pallet]
     pub struct Pallet<T>(_);
@@ -119,23 +120,23 @@ pub mod pallet {
         #[pallet::call_index(0)]
         pub fn criar_contato(
             origin: OriginFor<T>,
-            nome: Vec<u8>,
-            telefone: Vec<u8>,
-            email: Vec<u8>,
+            nome: String,
+            telefone: String,
+            email: String,
             idade: u32,
-            data_aniversario: Vec<u8>,
+            data_aniversario: String,
             categoria: Categoria,
         ) -> DispatchResult {
             let quem = ensure_signed(origin)?;
             let id = ContadorContatos::<T>::get(&quem);
-            let data_aniversario_parsed = Self::convert_to_timestamp(data_aniversario)?;
+            let data_aniversario_parsed = Self::convert_to_timestamp(data_aniversario.into_bytes())?;
 
             let contato = Contato {
                 id,
-                nome: BoundedVec::try_from(nome).map_err(|_| Error::<T>::NomeMuitoLongo)?,
-                telefone: BoundedVec::try_from(telefone)
+                nome: BoundedVec::try_from(nome.into_bytes()).map_err(|_| Error::<T>::NomeMuitoLongo)?,
+                telefone: BoundedVec::try_from(telefone.into_bytes())
                     .map_err(|_| Error::<T>::TelefoneMuitoLongo)?,
-                email: BoundedVec::try_from(email).map_err(|_| Error::<T>::EmailMuitoLongo)?,
+                email: BoundedVec::try_from(email.into_bytes()).map_err(|_| Error::<T>::EmailMuitoLongo)?,
                 idade,
                 data_aniversario: data_aniversario_parsed,
                 categoria,
@@ -152,15 +153,15 @@ pub mod pallet {
         pub fn atualizar_contato(
             origin: OriginFor<T>,
             id: u32,
-            nome: Vec<u8>,
-            telefone: Vec<u8>,
-            email: Vec<u8>,
+            nome: String,
+            telefone: String,
+            email: String,
             idade: u32,
-            data_aniversario: Vec<u8>,
+            data_aniversario: String,
             categoria: Categoria,
         ) -> DispatchResult {
             let quem = ensure_signed(origin)?;
-            let data_aniversario_parsed = Self::convert_to_timestamp(data_aniversario)?;
+            let data_aniversario_parsed = Self::convert_to_timestamp(data_aniversario.into_bytes())?;
             ensure!(
                 Contatos::<T>::contains_key(&quem, id),
                 Error::<T>::ContatoNaoEncontrado
@@ -168,10 +169,9 @@ pub mod pallet {
 
             let contato = Contato {
                 id,
-                nome: BoundedVec::try_from(nome).map_err(|_| Error::<T>::NomeMuitoLongo)?,
-                telefone: BoundedVec::try_from(telefone)
-                    .map_err(|_| Error::<T>::TelefoneMuitoLongo)?,
-                email: BoundedVec::try_from(email).map_err(|_| Error::<T>::EmailMuitoLongo)?,
+                nome: BoundedVec::try_from(nome.into_bytes()).map_err(|_| Error::<T>::NomeMuitoLongo)?,
+                telefone: BoundedVec::try_from(telefone.into_bytes()).map_err(|_| Error::<T>::TelefoneMuitoLongo)?,
+                email: BoundedVec::try_from(email.into_bytes()).map_err(|_| Error::<T>::EmailMuitoLongo)?,
                 idade,
                 data_aniversario: data_aniversario_parsed,
                 categoria,

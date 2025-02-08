@@ -6,11 +6,11 @@ use crate::mock::{new_test_ext, CustomPallet, RuntimeOrigin, Test};
 fn test_criar_contato() {
     new_test_ext().execute_with(|| {
         // Teste criando um contato válido
-        let nome = b"John Doe".to_vec();
-        let telefone = b"123456789".to_vec();
-        let email = b"john.doe@example.com".to_vec();
+        let nome = String::from("John Doe");
+        let telefone = String::from("123456789");
+        let email = String::from("john.doe@example.com");
         let idade = 30;
-        let data_aniversario = b"01/01/1990".to_vec();
+        let data_aniversario = String::from("01/01/1990");
         let categoria = crate::Categoria::Amigo;
 
         assert_ok!(CustomPallet::criar_contato(
@@ -25,9 +25,9 @@ fn test_criar_contato() {
 
         // Verifica se o contato foi criado corretamente
         let contato = CustomPallet::contatos(1, 0).unwrap();
-        let data_formatada = CustomPallet::convert_to_timestamp(data_aniversario).unwrap();
-        assert_eq!(contato.nome, nome);
-        assert_eq!(contato.telefone, telefone);
+        let data_formatada = CustomPallet::convert_to_timestamp(data_aniversario.into_bytes()).unwrap();
+        assert_eq!(contato.nome, nome.into_bytes());
+        assert_eq!(contato.telefone, telefone.into_bytes());
         assert_eq!(contato.idade, idade);
         assert_eq!(contato.data_aniversario, data_formatada);
         assert_eq!(contato.categoria, categoria);
@@ -41,11 +41,11 @@ fn test_criar_contato() {
 fn test_criar_contato_data_invalida() {
     new_test_ext().execute_with(|| {
         // Teste criando um contato com data inválida
-        let nome = b"John Doe".to_vec();
-        let telefone = b"123456789".to_vec();
+        let nome = String::from("John Doe");
+        let telefone = String::from("123456789");
         let idade = 30;
-        let email = b"john.doe@example.com".to_vec();
-        let data_aniversario = b"32/13/1990".to_vec();
+        let email = String::from("john.doe@example.com");
+        let data_aniversario = String::from("32/13/1990");
         let categoria = crate::Categoria::Amigo;
 
         assert_noop!(
@@ -67,11 +67,11 @@ fn test_criar_contato_data_invalida() {
 fn test_atualizar_contato() {
     new_test_ext().execute_with(|| {
         // Cria um contato válido
-        let nome = b"John Doe".to_vec();
-        let telefone = b"123456789".to_vec();
-        let email = b"john.doe@example.com".to_vec();
+        let nome = String::from("John Doe");
+        let telefone = String::from("123456789");
+        let email = String::from("john.doe@example.com");
         let idade = 30;
-        let data_aniversario = b"01/01/1990".to_vec();
+        let data_aniversario = String::from("01/01/1990");
         let categoria = crate::Categoria::Amigo;
 
         assert_ok!(CustomPallet::criar_contato(
@@ -85,11 +85,11 @@ fn test_atualizar_contato() {
         ));
 
         // Atualiza o contato com novas informações
-        let new_nome = b"Jane Doe".to_vec();
-        let new_telefone = b"987654321".to_vec();
-        let new_email = b"john.doe@example.com".to_vec();
+        let new_nome = String::from("Jane Doe");
+        let new_telefone = String::from("987654321");
+        let new_email = String::from("john.doe@example.com");
         let new_idade = 31;
-        let new_data_aniversario = b"02/02/1990".to_vec();
+        let new_data_aniversario = String::from("02/02/1990");
         let new_categoria = crate::Categoria::Familiar;
 
         assert_ok!(CustomPallet::atualizar_contato(
@@ -105,9 +105,9 @@ fn test_atualizar_contato() {
 
         // Verifica se o contato foi atualizado corretamente
         let updated_contato = CustomPallet::contatos(1,0).unwrap();
-        let data_formatada = CustomPallet::convert_to_timestamp(new_data_aniversario).unwrap();
-        assert_eq!(updated_contato.nome, new_nome);
-        assert_eq!(updated_contato.telefone, new_telefone);
+        let data_formatada = CustomPallet::convert_to_timestamp(new_data_aniversario.into_bytes()).unwrap();
+        assert_eq!(updated_contato.nome, new_nome.into_bytes());
+        assert_eq!(updated_contato.telefone, new_telefone.into_bytes());
         assert_eq!(updated_contato.idade, new_idade);
         assert_eq!(updated_contato.data_aniversario, data_formatada);
         assert_eq!(updated_contato.categoria, new_categoria);
@@ -118,11 +118,11 @@ fn test_atualizar_contato() {
 fn test_deletar_contato() {
     new_test_ext().execute_with(|| {
         // Cria um contato válido
-        let nome = b"John Doe".to_vec();
-        let telefone = b"123456789".to_vec();
+        let nome = String::from("John Doe");
+        let telefone = String::from("123456789");
         let idade = 30;
-        let email = b"john.doe@example.com".to_vec();
-        let data_aniversario = b"01/01/1990".to_vec();
+        let email = String::from("john.doe@example.com");
+        let data_aniversario = String::from("01/01/1990");
         let categoria = crate::Categoria::Amigo;
 
         assert_ok!(CustomPallet::criar_contato(
