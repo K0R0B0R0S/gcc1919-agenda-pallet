@@ -9,7 +9,8 @@ edition = "2021"
 members = [
     "node",
     "pallets/template",
-    "runtime",
+    "runtime", 
+    "pallets/gcc1919-agenda-pallets",
 ]
 resolver = "2"
 
