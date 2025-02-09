@@ -143,107 +143,145 @@ fn test_deletar_contato() {
     });
 }
 
-// #[test]
-// fn test_criar_compromisso() {
-//     new_test_ext().execute_with(|| {
-//         // Teste criando um compromisso válido
-//         let titulo = b"Reuniao".to_vec();
-//         let data = b"01/01/2025".to_vec();
-//         let hora = b"14:00".to_vec();
-//         let prioridade = crate::Prioridade::Alta;
-//         let duracao = 60;
+#[test]
+fn test_criar_compromisso() {
+    new_test_ext().execute_with(|| {
+        let titulo = String::from("Reunião de Trabalho");
+        let data = String::from("10/02/2025");
+        let hora = String::from("14:00");
+        let prioridade = crate::Prioridade::Alta;
+        let duracao = 60;
 
-//         assert_ok!(CustomPallet::criar_compromisso(
-//             RuntimeOrigin::signed(1),
-//             titulo.clone(),
-//             data.clone(),
-//             hora.clone(),
-//             prioridade.clone(),
-//             duracao,
-//         ));
+        assert_ok!(CustomPallet::criar_compromisso(
+            RuntimeOrigin::signed(1),
+            titulo.clone(),
+            data.clone(),
+            hora.clone(),
+            prioridade.clone(),
+            duracao,
+        ));
 
-//         // Verifica se o compromisso foi criado corretamente
-//         let compromisso = CustomPallet::compromissos(0).unwrap();
-//         assert_eq!(compromisso.titulo, titulo);
-//         assert_eq!(compromisso.data, data);
-//         assert_eq!(compromisso.hora, hora);
-//         assert_eq!(compromisso.prioridade, prioridade);
-//         assert_eq!(compromisso.duracao, duracao);
+        let compromisso = CustomPallet::compromissos(1, 0).unwrap();
+        let data_formatada = CustomPallet::convert_to_timestamp(data.into_bytes()).unwrap();
+        assert_eq!(compromisso.titulo, titulo.into_bytes());
+        assert_eq!(compromisso.data, data_formatada);
+        assert_eq!(compromisso.hora, hora.into_bytes());
+        assert_eq!(compromisso.prioridade, prioridade);
+        assert_eq!(compromisso.duracao, duracao);
 
-//         // Verifica se o próximo ID foi incrementado
-//         assert_eq!(CustomPallet::next_compromisso_id(), 1);
-//     });
-// }
+        assert_eq!(CustomPallet::contador_compromissos(1), 1);
+    });
+}
 
-// #[test]
-// fn test_atualizar_compromisso() {
-//     new_test_ext().execute_with(|| {
-//         // Cria um compromisso válido
-//         let titulo = b"Reuniao".to_vec();
-//         let data = b"01/01/2025".to_vec();
-//         let hora = b"14:00".to_vec();
-//         let prioridade = crate::Prioridade::Alta;
-//         let duracao = 60;
+#[test]
+fn test_criar_compromisso_hora_invalida() {
+    new_test_ext().execute_with(|| {
+        let titulo = String::from("Reunião");
+        let data = String::from("10/02/2025");
+        let hora = String::from("25:00");
+        let prioridade = crate::Prioridade::Baixa;
+        let duracao = 30;
 
-//         assert_ok!(CustomPallet::criar_compromisso(
-//             RuntimeOrigin::signed(1),
-//             titulo.clone(),
-//             data.clone(),
-//             hora.clone(),
-//             prioridade.clone(),
-//             duracao,
-//         ));
+        assert_noop!(
+            CustomPallet::criar_compromisso(
+                RuntimeOrigin::signed(1),
+                titulo,
+                data,
+                hora,
+                prioridade,
+                duracao,
+            ),
+            crate::Error::<Test>::HoraInvalida
+        );
+    });
+}
 
-//         // Atualiza o compromisso com novas informações
-//         let new_titulo = b"Conferencia".to_vec();
-//         let new_data = b"02/01/2025".to_vec();
-//         let new_hora = b"10:00".to_vec();
-//         let new_prioridade = crate::Prioridade::Media;
-//         let new_duracao = 90;
+#[test]
+fn test_criar_compromisso_duracao_invalida() {
+    new_test_ext().execute_with(|| {
+        let titulo = String::from("Reunião");
+        let data = String::from("10/02/2025");
+        let hora = String::from("14:00");
+        let prioridade = crate::Prioridade::Media;
+        let duracao = 0;
 
-//         assert_ok!(CustomPallet::atualizar_compromisso(
-//             RuntimeOrigin::signed(1),
-//             0,
-//             new_titulo.clone(),
-//             new_data.clone(),
-//             new_hora.clone(),
-//             new_prioridade.clone(),
-//             new_duracao,
-//         ));
+        assert_noop!(
+            CustomPallet::criar_compromisso(
+                RuntimeOrigin::signed(1),
+                titulo,
+                data,
+                hora,
+                prioridade,
+                duracao,
+            ),
+            crate::Error::<Test>::DuracaoInvalida
+        );
+    });
+}
 
-//         // Verifica se o compromisso foi atualizado corretamente
-//         let updated_compromisso = CustomPallet::compromissos(0).unwrap();
-//         assert_eq!(updated_compromisso.titulo, new_titulo);
-//         assert_eq!(updated_compromisso.data, new_data);
-//         assert_eq!(updated_compromisso.hora, new_hora);
-//         assert_eq!(updated_compromisso.prioridade, new_prioridade);
-//         assert_eq!(updated_compromisso.duracao, new_duracao);
-//     });
-// }
+#[test]
+fn test_atualizar_compromisso() {
+    new_test_ext().execute_with(|| {
+        let titulo = String::from("Chamada com Cliente");
+        let data = String::from("15/02/2025");
+        let hora = String::from("09:30");
+        let prioridade = crate::Prioridade::Media;
+        let duracao = 45;
 
-// #[test]
-// fn test_deletar_compromisso() {
-//     new_test_ext().execute_with(|| {
-//         // Cria um compromisso válido
-//         let titulo = b"Reuniao".to_vec();
-//         let data = b"01/01/2025".to_vec();
-//         let hora = b"14:00".to_vec();
-//         let prioridade = crate::Prioridade::Alta;
-//         let duracao = 60;
+        assert_ok!(CustomPallet::criar_compromisso(
+            RuntimeOrigin::signed(1),
+            titulo.clone(),
+            data.clone(),
+            hora.clone(),
+            prioridade.clone(),
+            duracao,
+        ));
 
-//         assert_ok!(CustomPallet::criar_compromisso(
-//             RuntimeOrigin::signed(1),
-//             titulo,
-//             data,
-//             hora,
-//             prioridade,
-//             duracao,
-//         ));
+        let new_titulo = String::from("Chamada com Equipe");
+        let new_data = String::from("16/02/2025");
+        let new_hora = String::from("10:00");
+        let new_prioridade = crate::Prioridade::Alta;
+        let new_duracao = 60;
 
-//         // Deleta o compromisso
-//         assert_ok!(CustomPallet::deletar_compromisso(RuntimeOrigin::signed(1), 0));
+        assert_ok!(CustomPallet::atualizar_compromisso(
+            RuntimeOrigin::signed(1),
+            0,
+            new_titulo.clone(),
+            new_data.clone(),
+            new_hora.clone(),
+            new_prioridade.clone(),
+            new_duracao,
+        ));
 
-//         // Verifica se o compromisso foi deletado
-//         assert!(CustomPallet::compromissos(0).is_none());
-//     });
-// }
+        let updated_compromisso = CustomPallet::compromissos(1, 0).unwrap();
+        let data_formatada = CustomPallet::convert_to_timestamp(new_data.into_bytes()).unwrap();
+        assert_eq!(updated_compromisso.titulo, new_titulo.into_bytes());
+        assert_eq!(updated_compromisso.data, data_formatada);
+        assert_eq!(updated_compromisso.hora, new_hora.into_bytes());
+        assert_eq!(updated_compromisso.prioridade, new_prioridade);
+        assert_eq!(updated_compromisso.duracao, new_duracao);
+    });
+}
+
+#[test]
+fn test_deletar_compromisso() {
+    new_test_ext().execute_with(|| {
+        let titulo = String::from("Consulta Médica");
+        let data = String::from("20/02/2025");
+        let hora = String::from("15:00");
+        let prioridade = crate::Prioridade::Baixa;
+        let duracao = 30;
+
+        assert_ok!(CustomPallet::criar_compromisso(
+            RuntimeOrigin::signed(1),
+            titulo.clone(),
+            data.clone(),
+            hora.clone(),
+            prioridade.clone(),
+            duracao,
+        ));
+
+        assert_ok!(CustomPallet::deletar_compromisso(RuntimeOrigin::signed(1), 0));
+        assert!(CustomPallet::compromissos(1, 0).is_none());
+    });
+}

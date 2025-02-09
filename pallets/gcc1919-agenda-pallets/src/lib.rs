@@ -25,7 +25,8 @@ pub mod pallet {
         type MaxNomeLength: Get<u32>;
         type MaxTelefoneLength: Get<u32>;
         type MaxEmailLength: Get<u32>;
-        type MaxDataLength: Get<u32>;
+        type MaxTituloLength: Get<u32>;
+        type MaxHoraLength: Get<u32>;
     }
 
     #[derive(Clone, Encode, Decode, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
@@ -47,6 +48,23 @@ pub mod pallet {
         Outro,
     }
 
+    #[derive(Clone, Encode, Decode, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+    pub struct Compromisso<T: Config> {
+        pub id: u32,
+        pub titulo: BoundedVec<u8, T::MaxTituloLength>,
+        pub data: u64,
+        pub hora: BoundedVec<u8, T::MaxHoraLength>,
+        pub prioridade: Prioridade,
+        pub duracao: u32,
+    }
+
+    #[derive(Clone, Encode, Decode, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+    pub enum Prioridade {
+        Alta,
+        Media,
+        Baixa,
+    }
+
     #[pallet::storage]
     #[pallet::getter(fn contatos)]
     pub type Contatos<T: Config> =
@@ -57,12 +75,25 @@ pub mod pallet {
     pub type ContadorContatos<T: Config> =
         StorageMap<_, Blake2_128Concat, T::AccountId, u32, ValueQuery>;
 
+    #[pallet::storage]
+    #[pallet::getter(fn compromissos)]
+    pub type Compromissos<T: Config> =
+        StorageDoubleMap<_, Blake2_128Concat, T::AccountId, Blake2_128Concat, u32, Compromisso<T>>;
+
+    #[pallet::storage]
+    #[pallet::getter(fn contador_compromissos)]
+    pub type ContadorCompromissos<T: Config> =
+        StorageMap<_, Blake2_128Concat, T::AccountId, u32, ValueQuery>;
+
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
         ContatoCriado { quem: T::AccountId, id: u32 },
         ContatoAtualizado { quem: T::AccountId, id: u32 },
         ContatoDeletado { quem: T::AccountId, id: u32 },
+        CompromissoCriado { quem: T::AccountId, id: u32 },
+        CompromissoAtualizado { quem: T::AccountId, id: u32 },
+        CompromissoDeletado { quem: T::AccountId, id: u32 },
     }
 
     #[pallet::error]
@@ -71,8 +102,11 @@ pub mod pallet {
         NomeMuitoLongo,
         TelefoneMuitoLongo,
         EmailMuitoLongo,
-        DataMuitoLonga,
         DataInvalida,
+        HoraInvalida,
+        DuracaoInvalida,
+        CompromissoNaoEncontrado,
+        TituloMuitoLongo,
     }
     
     impl<T: Config> Pallet<T> {
@@ -112,6 +146,32 @@ pub mod pallet {
         fn is_leap_year(year: i32) -> bool {
             (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0)
         }
+
+        pub fn validate_hour_input(hour: Vec<u8>) -> Result<(), Error<T>> {
+        
+            let hour_str = core::str::from_utf8(&hour).map_err(|_| Error::<T>::HoraInvalida)?;
+            let parts: Vec<&str> = hour_str.split(':').collect();
+            if parts.len() != 2 {
+                return Err(Error::<T>::HoraInvalida);
+            }
+
+            let hours: u32 = parts[0].parse().map_err(|_| Error::<T>::HoraInvalida)?;
+            let minutes: u32 = parts[1].parse().map_err(|_| Error::<T>::HoraInvalida)?;
+
+            if hours > 23 || minutes > 59 {
+                return Err(Error::<T>::HoraInvalida);
+            }
+
+            Ok(())
+        }
+
+        pub fn validate_duration_input(duration: u64) -> Result<(), Error<T>> {
+            // A duração é em minutos, então o valor máximo é 600 minutos (10 horas) e o mínimo é 1 minuto
+            if duration < 1 || duration > 600 {
+                return Err(Error::<T>::DuracaoInvalida);
+            }
+            Ok(())
+        }
     }
 
     #[pallet::call]
@@ -128,7 +188,7 @@ pub mod pallet {
             categoria: Categoria,
         ) -> DispatchResult {
             let quem = ensure_signed(origin)?;
-            let id = ContadorContatos::<T>::get(&quem);
+            let id: u32 = ContadorContatos::<T>::get(&quem);
             let data_aniversario_parsed = Self::convert_to_timestamp(data_aniversario.into_bytes())?;
 
             let contato = Contato {
@@ -192,6 +252,97 @@ pub mod pallet {
             );
             Contatos::<T>::remove(&quem, id);
             Self::deposit_event(Event::ContatoDeletado { quem, id });
+            Ok(())
+        }
+
+        #[pallet::weight(Weight::default())]
+        #[pallet::call_index(3)]
+        pub fn criar_compromisso(
+            origin: OriginFor<T>,
+            titulo: String,
+            data: String,
+            hora: String,
+            prioridade: Prioridade,
+            duracao: u32,
+        ) -> DispatchResult {
+            let quem = ensure_signed(origin)?;
+            let id = ContadorCompromissos::<T>::get(&quem);
+            let data_parsed = Self::convert_to_timestamp(data.into_bytes())?;
+            ensure!(
+                Self::validate_hour_input(hora.clone().into_bytes()).is_ok(),
+                Error::<T>::HoraInvalida
+            );
+            ensure!(
+                Self::validate_duration_input(duracao.into()).is_ok(),
+                Error::<T>::DuracaoInvalida
+            );
+
+            let compromisso = Compromisso {
+                id,
+                titulo: BoundedVec::try_from(titulo.into_bytes()).map_err(|_| Error::<T>::TituloMuitoLongo)?,
+                data: data_parsed,
+                hora: BoundedVec::try_from(hora.into_bytes()).map_err(|_| Error::<T>::HoraInvalida)?,
+                prioridade,
+                duracao,
+            };
+
+            Compromissos::<T>::insert(&quem, id, compromisso);
+            ContadorCompromissos::<T>::insert(&quem, id + 1);
+            Self::deposit_event(Event::CompromissoCriado { quem, id });
+            Ok(())
+        }
+
+        #[pallet::weight(Weight::default())]
+        #[pallet::call_index(4)]
+        pub fn atualizar_compromisso(
+            origin: OriginFor<T>,
+            id: u32,
+            titulo: String,
+            data: String,
+            hora: String,
+            prioridade: Prioridade,
+            duracao: u32,
+        ) -> DispatchResult {
+            let quem = ensure_signed(origin)?;
+            let data_parsed = Self::convert_to_timestamp(data.into_bytes())?;
+            ensure!(
+                Compromissos::<T>::contains_key(&quem, id),
+                Error::<T>::CompromissoNaoEncontrado
+            );
+            ensure!(
+                Self::validate_hour_input(hora.clone().into_bytes()).is_ok(),
+                Error::<T>::HoraInvalida
+            );
+            ensure!(
+                Self::validate_duration_input(duracao.into()).is_ok(),
+                Error::<T>::DuracaoInvalida
+            );
+
+            let compromisso = Compromisso {
+                id,
+                titulo: BoundedVec::try_from(titulo.into_bytes()).map_err(|_| Error::<T>::TituloMuitoLongo)?,
+                data: data_parsed,
+                hora: BoundedVec::try_from(hora.into_bytes()).map_err(|_| Error::<T>::HoraInvalida)?,
+                prioridade,
+                duracao,
+            };
+
+            Compromissos::<T>::insert(&quem, id, compromisso);
+            Self::deposit_event(Event::CompromissoAtualizado { quem, id });
+            Ok(())
+        }
+
+        #[pallet::weight(Weight::default())]
+        #[pallet::call_index(5)]
+        pub fn deletar_compromisso(origin: OriginFor<T>, id: u32) -> DispatchResult {
+            let quem = ensure_signed(origin)?;
+            ensure!(
+                Compromissos::<T>::contains_key(&quem, id),
+                Error::<T>::CompromissoNaoEncontrado
+            );
+
+            Compromissos::<T>::remove(&quem, id);
+            Self::deposit_event(Event::CompromissoDeletado { quem, id });
             Ok(())
         }
     }

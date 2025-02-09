@@ -27,7 +27,6 @@ mod runtime {
     pub type CustomPallet = GCC1919AgendaPallet::Pallet<Test>;
 }
 
-
 // System pallet configuration
 #[derive_impl(frame_system::config_preludes::TestDefaultConfig)]
 impl frame_system::Config for Test {
@@ -40,7 +39,8 @@ parameter_types! {
     pub const MaxNomeLength: u32 = 100;
     pub const MaxTelefoneLength: u32 = 15;
     pub const MaxEmailLength: u32 = 100;
-    pub const MaxDataLength: u32 = 10;
+    pub const MaxTituloLength: u32 = 100;
+    pub const MaxHoraLength: u32 = 5;
 }
 
 impl GCC1919AgendaPallet::Config for Test {
@@ -48,9 +48,9 @@ impl GCC1919AgendaPallet::Config for Test {
     type MaxNomeLength = MaxNomeLength;
     type MaxTelefoneLength = MaxTelefoneLength;
     type MaxEmailLength = MaxEmailLength;
-    type MaxDataLength = MaxDataLength;
+    type MaxTituloLength = MaxTituloLength;
+    type MaxHoraLength = MaxHoraLength;
 }
-
 
 // Test externalities initialization
 pub fn new_test_ext() -> sp_io::TestExternalities {

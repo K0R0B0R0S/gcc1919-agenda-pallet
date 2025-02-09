@@ -180,5 +180,6 @@ impl gcc1919_agenda_pallets::Config for Runtime {
 	type MaxNomeLength = ConstU32<100>;
     type MaxTelefoneLength = ConstU32<20>;
     type MaxEmailLength = ConstU32<100>;
-    type MaxDataLength = ConstU32<10>;
+    type MaxTituloLength = ConstU32<10>;
+	type MaxHoraLength = ConstU32<5>;
 }
